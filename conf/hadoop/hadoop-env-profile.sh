@@ -1,6 +1,6 @@
 # Source this to get a working Hadoop shell:  . "$(git rev-parse --show-toplevel)/conf/hadoop/hadoop-env-profile.sh"
-export JAVA_HOME=${HOME}/opt/java8
-export HADOOP_HOME=${HOME}/opt/hadoop
+export JAVA_HOME=${HOME}/project/opt/java8
+export HADOOP_HOME=${HOME}/project/opt/hadoop
 export HADOOP_CONF_DIR=${HADOOP_HOME}/etc/hadoop
 export HADOOP_MAPRED_HOME=${HADOOP_HOME}
 export HADOOP_COMMON_HOME=${HADOOP_HOME}

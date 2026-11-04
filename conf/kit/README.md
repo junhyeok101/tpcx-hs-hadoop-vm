@@ -14,7 +14,7 @@ clause 4.a.(3) specifically forbids contributing it to third-party projects.
 `.gitignore` blocks them.
 
 Obtain the kit from <https://www.tpc.org/tpcx-hs/> and unpack it to
-`/home/jiho/project/TPCx-HS_Kit_v2.0.3` (or set `KIT_HOME`).
+`~/project/TPCx-HS_Kit_v2.0.3` (or set `KIT_HOME`).
 
 ## Values set here
 

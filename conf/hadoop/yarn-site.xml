@@ -55,11 +55,11 @@
   </property>
   <property>
     <name>yarn.nodemanager.local-dirs</name>
-    <value>${user.home}/hadoop-data/yarn/local</value>
+    <value>${user.home}/project/hadoop-data/yarn/local</value>
   </property>
   <property>
     <name>yarn.nodemanager.log-dirs</name>
-    <value>${user.home}/hadoop-data/yarn/logs</value>
+    <value>${user.home}/project/hadoop-data/yarn/logs</value>
   </property>
   <property>
     <name>yarn.log-aggregation-enable</name>

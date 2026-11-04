@@ -4,11 +4,11 @@
 # (NameNode, DataNode, SecondaryNameNode, ResourceManager, NodeManager);
 # the Hadoop defaults of 1 GB each would exceed physical memory.
 # ---------------------------------------------------------------------------
-export JAVA_HOME=${HOME}/opt/java8
-export HADOOP_HOME=${HOME}/opt/hadoop
+export JAVA_HOME=${HOME}/project/opt/java8
+export HADOOP_HOME=${HOME}/project/opt/hadoop
 export HADOOP_CONF_DIR=${HADOOP_HOME}/etc/hadoop
-export HADOOP_LOG_DIR=${HOME}/hadoop-data/logs
-export HADOOP_PID_DIR=${HOME}/hadoop-data/pids
+export HADOOP_LOG_DIR=${HOME}/project/hadoop-data/logs
+export HADOOP_PID_DIR=${HOME}/project/hadoop-data/pids
 
 # Ceiling for any Hadoop JVM that does not set its own -Xmx (in MB).
 export HADOOP_HEAPSIZE_MAX=512

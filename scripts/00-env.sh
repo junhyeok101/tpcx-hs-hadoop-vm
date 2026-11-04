@@ -2,9 +2,16 @@
 # Common environment for every script in this directory. Source, do not execute.
 set -o pipefail
 
+# Everything this project owns lives under one root so it can be moved or
+# deleted as a unit. Override TPCXHS_ROOT to relocate -- but if you do, also
+# update the ${user.home}/project/... paths in conf/hadoop/*.xml, because
+# Hadoop XML can only expand Java system properties, not shell variables.
+export TPCXHS_ROOT="${TPCXHS_ROOT:-${HOME}/project}"
+
 export REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export OPT_DIR="${HOME}/opt"
-export DATA_DIR="${HOME}/hadoop-data"
+export OPT_DIR="${TPCXHS_ROOT}/opt"
+export DATA_DIR="${TPCXHS_ROOT}/hadoop-data"
+export KIT_ROOT="${TPCXHS_ROOT}/TPCx-HS_Kit_v2.0.3"
 
 export JAVA_HOME="${OPT_DIR}/java8"
 export HADOOP_HOME="${OPT_DIR}/hadoop"

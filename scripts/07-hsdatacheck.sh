@@ -12,7 +12,7 @@
 set -uo pipefail
 . "$(dirname "$0")/00-env.sh"
 
-KIT_HOME="${KIT_HOME:-${HOME}/project/TPCx-HS_Kit_v2.0.3/TPCx-HS-Runtime-Suite}"
+KIT_HOME="${KIT_HOME:-${KIT_ROOT}/TPCx-HS-Runtime-Suite}"
 . "${REPO_DIR}/conf/kit/Benchmark_Parameters.sh"
 DIR="${1:-/user/${HADOOP_USER}/${HDFS_BENCHMARK_DIR}/HSsort-input}"
 

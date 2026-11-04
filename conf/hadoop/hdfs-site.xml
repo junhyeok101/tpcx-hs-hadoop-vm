@@ -12,11 +12,11 @@
   </property>
   <property>
     <name>dfs.namenode.name.dir</name>
-    <value>file://${user.home}/hadoop-data/nn</value>
+    <value>file://${user.home}/project/hadoop-data/nn</value>
   </property>
   <property>
     <name>dfs.datanode.data.dir</name>
-    <value>file://${user.home}/hadoop-data/dn</value>
+    <value>file://${user.home}/project/hadoop-data/dn</value>
   </property>
   <property>
     <name>dfs.blocksize</name>

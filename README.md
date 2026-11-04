@@ -92,14 +92,32 @@ step is installing `openssh-server` if the image lacks it.
 
 ### 3.2 Get the repository and the kit
 
-```bash
-git clone <this repo> ~/tpcxhs-m2      # or copy the directory across
-cd ~/tpcxhs-m2
+Everything this project owns lives under a single root, `~/project`, so it can
+be inspected, backed up or deleted as one unit and `$HOME` stays clean:
+
 ```
+~/project/
+├── tpcxhs-m2/              this repository
+├── TPCx-HS_Kit_v2.0.3/     the kit (not committed -- see below)
+├── opt/                    java8/ and hadoop/ (installed by 01-install.sh)
+└── hadoop-data/            nn/ dn/ tmp/ logs/ pids/ yarn/ (cluster state)
+```
+
+```bash
+mkdir -p ~/project && cd ~/project
+git clone <this repo> tpcxhs-m2        # or copy the directory across
+cd tpcxhs-m2
+```
+
+`opt/` and `hadoop-data/` are created for you. To use a different root, set
+`TPCXHS_ROOT` (it defaults to `$HOME/project`) **and** update the
+`${user.home}/project/...` paths in `conf/hadoop/*.xml` — Hadoop XML can only
+expand Java system properties, not shell variables, so that one duplication is
+unavoidable.
 
 The TPCx-HS kit is **not** in this repository — its EULA forbids
 redistribution (§4 below). Download it from <https://www.tpc.org/tpcx-hs/> and
-unpack it so that the runtime suite sits at
+unpack it so the runtime suite sits at
 `~/project/TPCx-HS_Kit_v2.0.3/TPCx-HS-Runtime-Suite`, or put it anywhere and
 `export KIT_HOME=/path/to/TPCx-HS-Runtime-Suite`.
 
@@ -111,6 +129,7 @@ On a non-aarch64 guest, edit `HADOOP_VERSION`, `HADOOP_TARBALL`,
 ### 3.3 Run the build
 
 ```bash
+cd ~/project/tpcxhs-m2
 ./scripts/00-preflight.sh      # checks arch, CPU, RAM, swap, disk, commands,
                                # sshd, the kit, and every download mirror.
                                # Fix anything marked FAIL before continuing.
@@ -460,15 +479,17 @@ tpcxhs-m2/
 │                                   99-remove-monitoring-stack (optional)
 ├── docs/
 │   ├── DESIGN.md                   components, roles, data flow (for the report)
-│   └── KIT-INTEGRATION.md          kit location, driver findings, scale arithmetic
+│   ├── KIT-INTEGRATION.md          kit location, driver findings, scale arithmetic
+│   └── architecture-summary.html   the slide/report page (§11)
 ├── downloads/                      tarballs — gitignored
 └── logs/                           HSGen run logs — gitignored
 ```
 
-Paths outside the repo, all under `$HOME` so no account is privileged:
-`~/opt/{java8,hadoop}` (software),
-`~/hadoop-data/{nn,dn,tmp,logs,pids,yarn}` (cluster state),
+Paths outside the repo, all siblings under `~/project` and none privileged:
+`~/project/opt/{java8,hadoop}` (software),
+`~/project/hadoop-data/{nn,dn,tmp,logs,pids,yarn}` (cluster state),
 `~/project/TPCx-HS_Kit_v2.0.3` (the kit, unmodified, not committed).
+`TPCXHS_ROOT` in `scripts/00-env.sh` is the single knob for that root.
 
 Nothing in `conf/` or `scripts/` contains an absolute `/home/<user>` path: the
 XML files use `${user.home}` / `${user.name}` (expanded by Hadoop's

@@ -82,7 +82,7 @@ fi
 
 echo
 echo "=== TPCx-HS kit ==="
-KIT_HOME="${KIT_HOME:-${HOME}/project/TPCx-HS_Kit_v2.0.3/TPCx-HS-Runtime-Suite}"
+KIT_HOME="${KIT_HOME:-${KIT_ROOT}/TPCx-HS-Runtime-Suite}"
 if [ -f "${KIT_HOME}/TPCx-HS-master_MR2.jar" ]; then
   ok "kit found at ${KIT_HOME} (v$(cat "${KIT_HOME}/VERSION.txt" 2>/dev/null || echo '?'))"
 else

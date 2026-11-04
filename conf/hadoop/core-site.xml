@@ -14,8 +14,8 @@
   </property>
   <property>
     <name>hadoop.tmp.dir</name>
-    <value>${user.home}/hadoop-data/tmp</value>
-    <description>Kept under $HOME: no root privileges are available on this VM.</description>
+    <value>${user.home}/project/hadoop-data/tmp</value>
+    <description>Kept under ~/project with the rest of the project; no root on this VM.</description>
   </property>
   <property>
     <name>io.file.buffer.size</name>

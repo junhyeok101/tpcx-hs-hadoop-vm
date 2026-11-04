@@ -62,13 +62,25 @@ SRC="${REPO_DIR}/conf/hadoop"
 for f in core-site.xml hdfs-site.xml yarn-site.xml mapred-site.xml workers; do
   cp -v "${SRC}/${f}" "${HADOOP_CONF_DIR}/${f}"
 done
-# Append our env block exactly once (idempotent on re-run).
-if ! grep -q 'TPCx-HS Milestone 2' "${HADOOP_CONF_DIR}/hadoop-env.sh"; then
-  cat "${SRC}/hadoop-env-tpcxhs.sh" >> "${HADOOP_CONF_DIR}/hadoop-env.sh"
-  echo "appended hadoop-env-tpcxhs.sh -> hadoop-env.sh"
+# Replace our env block if present, append it if not. Replacing rather than
+# skipping matters: if the paths in conf/ change, a stale block would keep
+# pointing the daemons at the old locations.
+ENVF="${HADOOP_CONF_DIR}/hadoop-env.sh"
+if grep -q 'TPCx-HS Milestone 2' "${ENVF}"; then
+  python3 - "${ENVF}" <<'STRIP'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+i = s.find('# TPCx-HS Milestone 2')
+if i != -1:
+    j = s.rfind('\n# ---', 0, i)          # start of the banner comment
+    open(p, 'w').write(s[:j if j != -1 else i].rstrip() + '\n')
+STRIP
+  echo "refreshed the TPCx-HS block in hadoop-env.sh"
 else
-  echo "hadoop-env.sh already carries the TPCx-HS block; left untouched"
+  echo "appending the TPCx-HS block to hadoop-env.sh"
 fi
+cat "${SRC}/hadoop-env-tpcxhs.sh" >> "${ENVF}"
 
 mkdir -p "${DATA_DIR}"/{nn,dn,tmp,logs,pids,yarn/local,yarn/logs}
 

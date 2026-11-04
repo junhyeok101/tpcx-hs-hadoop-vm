@@ -3,7 +3,7 @@
 ## Location
 
 ```
-/home/jiho/project/TPCx-HS_Kit_v2.0.3/
+~/project/TPCx-HS_Kit_v2.0.3/
 ├── EULA.txt
 ├── TPCx-HS Specification.docx          <- the v2.0.3 spec itself
 ├── TPCx-HS-Runtime-Suite/
