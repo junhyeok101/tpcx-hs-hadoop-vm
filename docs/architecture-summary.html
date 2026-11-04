@@ -599,14 +599,45 @@
           <tr><td>Filesystem integrity</td><td><span class="pill pass">pass</span></td>
               <td class="mono">hdfs fsck / &rarr; HEALTHY, 0 corrupt, 0 missing</td></tr>
           <tr><td>Record format</td><td><span class="pill pass">pass</span></td>
-              <td class="mono">first record is 100 B, begins JimGrayRIP</td></tr>
+              <td class="mono">100 B exactly; matches GenSort.generateRecord field for field</td></tr>
+          <tr><td>Independent regeneration</td><td><span class="pill pass">pass</span></td>
+              <td class="mono">records rebuilt outside Hadoop are byte-identical to HDFS</td></tr>
+          <tr><td>Checksum recomputed</td><td><span class="pill pass">pass</span></td>
+              <td class="mono">0x4c49607ac53602 = 21472776955442690, independent of the MR run</td></tr>
           <tr><td>YARN node health</td><td><span class="pill pass">pass</span></td>
               <td class="mono">1 node RUNNING</td></tr>
           <tr><td>Generation checksum</td><td><span class="pill pass">recorded</span></td>
               <td class="mono">CHECKSUM = 21472776955442690</td></tr>
         </tbody>
-        <caption>The <code>JimGrayRIP</code> prefix is the generator's signature, a tribute to Jim Gray who originated the sort benchmark &mdash; its presence confirms the data came from real kit code rather than a substitute. Keep the checksum: HSValidate compares against it in Milestone&nbsp;3.</caption>
+        <caption>Keep the checksum: HSValidate compares against it in Milestone&nbsp;3. See the note below on why the dataset can be re-derived from nothing but the record count.</caption>
       </table>
+    </div>
+
+    <div class="col">
+      <h3>Why the data can be checked without trusting the run</h3>
+      <p>
+        HSGen's output is a deterministic function of the record number
+        (<code>Random16.skipAhead(rowId)</code>), so the kit's <code>GenSort</code>
+        compiles standalone and rebuilds any slice of the dataset outside Hadoop.
+        Records 0&ndash;4 regenerated that way are <strong>byte-identical</strong> to
+        what HDFS holds, and re-running the generator over all 10,000,000 records
+        reproduces the checksum <code>0x4c49607ac53602</code> &mdash; the same
+        21472776955442690 that HSGen's own counter reported. The value Milestone 3
+        validates against is therefore confirmed independently of the MapReduce job
+        that produced it.
+      </p>
+      <p>
+        One correction worth recording, because it is an easy thing to get wrong in a
+        write-up: the <code>JimGrayRIP</code> string visible at the start of the first
+        record is <strong>not</strong> a marker the kit stamps in &mdash;
+        <code>grep -i 'jim\|gray\|RIP'</code> over the kit sources finds nothing. It is
+        the <em>computed</em> 10-byte key of record 0, the high 10 bytes of the 128-bit
+        random value from <code>Random16.skipAhead(0)</code>
+        (<code>GenSort.java:43-45</code>), followed by the
+        <code>recBuf[10]=0x00, recBuf[11]=0x11</code> break. It is evidence that the
+        generator's sequence started where it should, not proof of provenance &mdash;
+        TeraGen uses the same algorithm and emits the same bytes.
+      </p>
     </div>
   </section>
 
