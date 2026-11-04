@@ -57,7 +57,7 @@ One host, pseudo-distributed: five daemons in five JVMs over loopback.
 | NameNode | 512 MB | Namespace + block map. RPC on `localhost:8020`, UI on `:9870`. |
 | DataNode | 256 MB | Stores blocks on the ext4 volume. The only bulk-data mover. |
 | SecondaryNameNode | 256 MB | Merges the edit log into new fsimage checkpoints. Pinned to `localhost:9868`. |
-| ResourceManager | 384 MB | Scheduler; owns the 2048 MB / 4 vcore container pool. |
+| ResourceManager | 384 MB | Scheduler; owns the 2560 MB / 4 vcore container pool. |
 | NodeManager | 384 MB | Launches containers, enforces memory, serves shuffle. |
 
 See [`docs/DESIGN.md`](docs/DESIGN.md) for the component/data-flow write-up
@@ -292,7 +292,8 @@ $ hdfs dfs -du -h -s /user/jiho/TPCx-HS-benchmark/HSsort-input
 | Byte count | PASS — 1,000,000,000 B = 10,000,000 × 100 B |
 | `hdfs fsck /` | HEALTHY — 0 corrupt, 0 missing, 0 under-replicated |
 | `yarn node -list` | 1 node RUNNING (`jihopc:36691`) |
-| Record format | PASS — first record is 100 B and begins `JimGrayRIP`, the kit's generator signature |
+| Record format | PASS — first record is exactly 100 B and matches `GenSort.generateRecord` field for field |
+| Independent regeneration | PASS — records rebuilt outside Hadoop are **byte-identical** to HDFS, and the full checksum recomputes (below) |
 
 ```
 $ hdfs dfs -cat .../part-m-00000 | head -c 100 | od -c
@@ -301,15 +302,58 @@ $ hdfs dfs -cat .../part-m-00000 | head -c 100 | od -c
 0000144                                        <- octal 144 = 100 bytes
 ```
 
+`JimGrayRIP` is **not** a literal in the kit — `grep -rn -i 'jim\|gray\|RIP'`
+over `TPCx-HS-SRC-MR2/*.java` finds nothing. It is the *computed* 10-byte key of
+record 0: `generateRecord` uses the high 10 bytes of the 128-bit random value
+from `Random16.skipAhead(0)` as the key (`GenSort.java:43-45`), and the `\0 021`
+immediately after it is the `recBuf[10]=0x00, recBuf[11]=0x11` break
+(`GenSort.java:48-49`). The rest of the record follows the same source: 32 bytes
+of ASCII-hex record number, a `0x88 0x99 0xAA 0xBB` break, 48 bytes of filler,
+then `0xCC 0xDD 0xEE 0xFF`. So the string is evidence that the generator's
+random sequence started at record 0 as intended — not a marker the kit stamps in.
+
+### Independent regeneration
+
+HSGen's output is a deterministic function of the record number
+(`Random16.skipAhead(rowId)`, `HSGen.java:221-226`), so the dataset can be
+rebuilt without Hadoop and compared byte for byte. The kit's own `GenSort` was
+compiled standalone — it needs only `Random16`, `Unsigned16` and Hadoop's
+`PureJavaCrc32` — and checked against the live dataset:
+
+```bash
+javac -cp "$(hadoop classpath)" -d . GenSort.java Random16.java Unsigned16.java
+
+# records 0-4 (500 B), generated locally, vs. the real HDFS bytes
+java -cp ".:$(hadoop classpath)" GenSort -c -b0 5 local5.bin
+hdfs dfs -cat "/user/$(id -un)/TPCx-HS-benchmark/HSsort-input/part-m-00000" \
+    | head -c 500 > hdfs5.bin
+cmp local5.bin hdfs5.bin        # identical
+sha256sum local5.bin hdfs5.bin  # both 3ca78c2a1d3cad671dc14a944f17706b
+                                #       33ec4357447c063cffba62d62eaaf240
+
+# the whole 1 GB re-checksummed, generated data discarded
+java -cp ".:$(hadoop classpath)" GenSort -c -b0 10000000 /dev/null
+# 4c49607ac53602  =  21472776955442690  -- matches HSGen's counter in section 6
+```
+
+This is a stronger check than looking for a magic string: the dataset is
+reproducible from the record count alone, and the CHECKSUM that Milestone 3
+will compare against is confirmed independently of the MapReduce run that
+produced it.
+
 ### Final disk state
 
 ```
 $ df -h /
-/dev/mapper/ubuntu--vg-ubuntu--lv   30G   20G  9.2G  68% /
+/dev/mapper/ubuntu--vg-ubuntu--lv   30G   18G   11G  62% /
 
 $ hdfs dfs -df -h /
-hdfs://localhost:8020  27.8 G  961.7 M  9.1 G  3%
+hdfs://localhost:8020  27.8 G  961.7 M  10.8 G  3%
 ```
+
+Re-measured after the monitoring stack was removed (§12). Immediately after the
+M2 build, with Grafana and InfluxDB still resident, the same two commands
+reported `20G used / 9.2G avail / 68%` and `9.1 G` of HDFS capacity.
 
 ### Why the dataset stayed at 1 GB
 
@@ -378,6 +422,24 @@ The cluster is left **running** with the 1 GB dataset in place.
 4. Run HSValidate (`TPCx-HS-master.sh:299`) and compare against the HSGen
    CHECKSUM recorded in §6. Note the kit's known
    `IndexOutOfBoundsException` issue (MAPREDUCE-6635) in `USER_GUIDE.txt`.
+
+   What HSValidate actually asserts — two independent properties, and both are
+   needed, since order alone would pass even if records were dropped and the
+   checksum alone would pass even if nothing were sorted:
+
+   | Property | How | Source |
+   |----------|-----|--------|
+   | Ordering | one mapper per file checks keys are non-decreasing; the single reducer checks the `:begin`/`:end` keys of adjacent files join up | `HSValidate.java:85-89`, `:137-143` |
+   | Preservation | per-record CRC32 summed into a 128-bit accumulator — **addition commutes, so sorting must not change the sum** | `HSValidate.java:92-96` vs `HSGen.java:232-235` |
+
+   Judging the result is inverted from the usual convention: **an empty output
+   directory is the pass.** Any content is the problem report
+   (`misorder in <file> between ...` or `bad key partitioning: ...`) — see the
+   class comment at `HSValidate.java:48-49`.
+
+   This logic is scale-independent. The 1 GB dataset makes the run
+   unpublishable (§8) but does not weaken the correctness proof at all: it is
+   mathematically the same check that runs at 100 TB.
 5. Watch `df -h /` between phases; `05-hsgen.sh`'s 3× guard does not cover a
    sort you launch by hand.
 
