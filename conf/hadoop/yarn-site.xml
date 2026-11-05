@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <!--
-  Memory budget for this VM (total RAM 3.8 GB):
+  Memory budget for this VM (total RAM 7.7 GiB, measured 2026-11-05):
     OS + resident services (VS Code server)                   ~ 1.7 GB
-    HDFS/YARN daemon heaps (see hadoop-env.sh)                ~ 1.3 GB max
-    YARN container pool (below)                                 2560 MB
-  Grafana and InfluxDB were removed from this VM on 2026-11-04, freeing
-  ~288 MB of resident memory; the pool was raised from 2048 to 2560 MB to
-  claim it. The pool still deliberately overlaps swap (3.8 GB) because
-  MapReduce containers are short-lived; pmem checking stays on to bound them.
+    HDFS/YARN daemon heaps (see hadoop-env-tpcxhs.sh)        1792 MB max
+    YARN container pool (below)                                 3840 MB
+  3840 MB holds the ApplicationMaster plus 4 map containers at 768 MB each.
+  This budget does NOT fit a 4 GB VM: lower the pool and the daemon heaps there.
 -->
 <configuration>
   <property>
@@ -21,7 +19,7 @@
   </property>
   <property>
     <name>yarn.nodemanager.resource.memory-mb</name>
-    <value>2560</value>
+    <value>3840</value>
   </property>
   <property>
     <name>yarn.nodemanager.resource.cpu-vcores</name>
@@ -30,7 +28,11 @@
   </property>
   <property>
     <name>yarn.scheduler.minimum-allocation-mb</name>
-    <value>512</value>
+    <value>256</value>
+    <description>
+      Requests round up to a multiple of this. At 512, a 768 MB request became
+      1024 MB, so the job could run only one map at a time.
+    </description>
   </property>
   <property>
     <name>yarn.scheduler.maximum-allocation-mb</name>

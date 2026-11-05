@@ -36,10 +36,10 @@ cores="$(nproc)"
         and NUM_MAPS in conf/kit/Benchmark_Parameters.sh to match"
 
 mem_mb=$(awk '/MemTotal/{printf "%d", $2/1024}' /proc/meminfo)
-if   [ "${mem_mb}" -ge 3500 ]; then ok "${mem_mb} MB RAM"
+if   [ "${mem_mb}" -ge 7000 ]; then ok "${mem_mb} MB RAM"
 elif [ "${mem_mb}" -ge 2500 ]; then
-  warn "${mem_mb} MB RAM — the committed config assumes ~3.8 GB.
-        Lower yarn.nodemanager.resource.memory-mb (currently 2560) and the
+  warn "${mem_mb} MB RAM — the committed config assumes ~7.7 GB.
+        Lower yarn.nodemanager.resource.memory-mb (currently 3840) and the
         daemon heaps in conf/hadoop/hadoop-env-tpcxhs.sh."
 else
   bad "${mem_mb} MB RAM is too little for five daemons plus containers"
@@ -47,8 +47,8 @@ fi
 
 swap_mb=$(awk '/SwapTotal/{printf "%d", $2/1024}' /proc/meminfo)
 [ "${swap_mb}" -ge 1024 ] && ok "${swap_mb} MB swap" \
-  || warn "${swap_mb} MB swap — the container pool deliberately oversubscribes
-        RAM and relies on swap; consider adding some"
+  || warn "${swap_mb} MB swap — the memory budget leaves little headroom at
+        peak; consider adding some"
 
 avail_gb=$(df -BG --output=avail "${HOME}" | tail -1 | tr -dc '0-9')
 if   [ "${avail_gb}" -ge 10 ]; then ok "${avail_gb} GB free on ${HOME}"

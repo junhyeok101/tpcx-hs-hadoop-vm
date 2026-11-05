@@ -20,9 +20,9 @@
 #       NameNode, i.e. jiho.
 #
 #   NUM_MAPS
-#       kit ships 768. YARN here offers 4 vcores and a 2048 MB container pool,
+#       kit ships 768. YARN here offers 4 vcores and a 3840 MB container pool,
 #       so 768 map tasks would serialise into ~192 waves and each container
-#       would fall below the 512 MB scheduler minimum. 4 matches the vcores.
+#       would fall below the 256 MB scheduler minimum. 4 matches the vcores.
 #
 #   NUM_REDUCERS
 #       kit ships 768, same reasoning. HSGen ignores it entirely -- its

@@ -3,8 +3,11 @@
 Single-node Hadoop cluster built to run the TPCx-HS v2.0.3 benchmark kit, with
 a 1 GB HSGen dataset generated, loaded into HDFS and verified.
 
-**Status: complete.** Milestone 3 (HSSort / HSValidate performance measurement)
-is deliberately out of scope here; the cluster is left running and ready for it.
+**Status: complete.** This document covers Milestone 2. Milestone 3 (HSSort /
+HSValidate performance measurement) is not written up here. The ResourceManager
+log shows trial HSSort and HSValidate runs on 2026-11-04, made before the YARN
+fix in §12, so any timing from them should not be used. Their output is no
+longer in HDFS.
 
 ---
 
@@ -14,22 +17,22 @@ is deliberately out of scope here; the cluster is left running and ready for it.
 |------|-------|-------------|
 | Host | macOS + UTM virtual machine | given |
 | Guest OS | Ubuntu 22.04.5 LTS (Jammy) | `/etc/os-release` |
-| Kernel | 5.15.0-187-generic | `uname -a` |
+| Kernel | 5.15.0-202-generic | `uname -r` |
 | Architecture | **aarch64 (ARM64)** | `uname -m` |
 | Hostname | `jihopc` | `hostname` |
 | CPU | 6 vCPU | `nproc` |
-| RAM | 3.8 GiB total, ~1.0-1.2 GiB free with the cluster up | `free -h` |
+| RAM | 7.7 GiB total, ~4.5 GiB available with the cluster idle (2026-11-05; 3.8 GiB at the original build) | `free -h` |
 | Swap | 3.8 GiB | `free -h` |
-| Disk | 30 GB volume, **11 GB free** after build | `df -h /` |
+| Disk | 30 GB volume, **9.4 GB free** on 2026-11-05 (11 GB after the build) | `df -h /` |
 | Java | Eclipse Temurin **OpenJDK 1.8.0_504** (aarch64) | `java -version` |
 | Hadoop | Apache **3.3.6**, `linux-aarch_64` build | `hadoop version` |
 | Kit | **TPCx-HS v2.0.3**, MapReduce (MR2) jar | `VERSION.txt` |
 | Spec | TPCx-HS Specification v2.0.3 | `TPCx-HS Specification.docx` in the kit |
 
 Two numbers differed from the brief and are worth noting: free disk was
-**13 GB** at the start (not ~15 GB), and usable RAM is well under half the
-nominal 3.8 GiB because the VS Code server is resident. Every memory setting
-below follows from that second number. Grafana and InfluxDB were also resident
+**13 GB** at the start (not ~15 GB), and usable RAM was well under half the
+nominal 3.8 GiB because the VS Code server is resident. The original memory
+settings followed from that second number; §12 records the later change. Grafana and InfluxDB were also resident
 until they were removed partway through (see §12).
 
 ### Why these versions
@@ -57,7 +60,7 @@ One host, pseudo-distributed: five daemons in five JVMs over loopback.
 | NameNode | 512 MB | Namespace + block map. RPC on `localhost:8020`, UI on `:9870`. |
 | DataNode | 256 MB | Stores blocks on the ext4 volume. The only bulk-data mover. |
 | SecondaryNameNode | 256 MB | Merges the edit log into new fsimage checkpoints. Pinned to `localhost:9868`. |
-| ResourceManager | 384 MB | Scheduler; owns the 2560 MB / 4 vcore container pool. |
+| ResourceManager | 384 MB | Scheduler; owns the 3840 MB / 4 vcore container pool. |
 | NodeManager | 384 MB | Launches containers, enforces memory, serves shuffle. |
 
 See [`docs/DESIGN.md`](docs/DESIGN.md) for the component/data-flow write-up
@@ -82,8 +85,8 @@ Settings that the committed configuration assumes:
 | Hypervisor | UTM on macOS (Apple Silicon) | any; only the guest matters |
 | Guest image | **Ubuntu Server 22.04 LTS, arm64** | an x86_64 guest needs different tarballs — see §3.2 |
 | vCPU | 4–6 | <4: lower `yarn.nodemanager.resource.cpu-vcores` and `NUM_MAPS` |
-| RAM | **4 GB** | <3.5 GB: lower `yarn.nodemanager.resource.memory-mb` and the daemon heaps |
-| Swap | ≥ 2 GB | the container pool deliberately oversubscribes RAM |
+| RAM | **8 GB** | <7 GB: lower `yarn.nodemanager.resource.memory-mb` and the daemon heaps |
+| Swap | ≥ 2 GB | headroom for memory peaks |
 | Disk | **30 GB** (≥ 10 GB free after the OS) | <6 GB free: not enough for a 1 GB run plus the sort |
 | Packages at install | tick **OpenSSH server** | otherwise `apt install -y openssh-server` before step 3.3 |
 
@@ -193,7 +196,8 @@ Committed under [`conf/hadoop/`](conf/hadoop/) and copied into
 | `dfs.blocksize` | 128 MB | Default; a 1 GB dataset spans ~7.5 blocks. |
 | `dfs.datanode.du.reserved` | 2 GB | Stops HDFS from filling the root filesystem. |
 | `dfs.namenode.secondary.http-address` | `localhost:9868` | Left at the `0.0.0.0` default, `start-dfs.sh` rewrites it to `$(hostname)` and ssh's to `jihopc`, which was not an authorised host — the SecondaryNameNode silently failed to start. |
-| `yarn.nodemanager.resource.memory-mb` | 2560 | The container pool. Was 2048 while Grafana and InfluxDB were resident; raised after they were removed (see §12). |
+| `yarn.nodemanager.resource.memory-mb` | 3840 | The container pool: ApplicationMaster + 4 maps at 768 MB each (see §12). |
+| `yarn.scheduler.minimum-allocation-mb` | 256 | Requests round up to a multiple of this. At 512, a 768 MB request became 1024 MB and only one map could run at a time. |
 | `yarn.scheduler.maximum-allocation-mb` | 1024 | Caps any single container. |
 | `yarn.nodemanager.resource.cpu-vcores` | 4 | 6 vCPUs, 2 left for the OS and HDFS daemons. |
 | `yarn.nodemanager.vmem-check-enabled` | `false` | The JVM reserves a large virtual address space on aarch64; the default 2.1× vmem ratio kills healthy containers. Physical-memory enforcement stays on. |
@@ -385,6 +389,8 @@ Against 11 GB free (9.2 GB before the monitoring stack was removed):
 | 2 GB | ~4 GB | ~7 GB | safe |
 | 3 GB | ~6 GB | ~5 GB | now viable, but leaves little slack for logs and retries |
 
+Free disk had dropped to 9.4 GB by 2026-11-05, so take ~1.6 GB off "Left over".
+
 1 GB is kept so Milestone 3 has room to work, and HSGen takes only 28 s if a
 larger set is wanted later. `05-hsgen.sh` enforces the 3× rule before
 generating anything and refuses to overwrite an existing dataset.
@@ -404,8 +410,8 @@ generating anything and refuses to overwrite an existing dataset.
    reasons in §6. No performance metric (HSph@SF) is produced or claimed.
 5. **Cluster Validation Suite skipped.** It requires `clush`/`pdsh`, which are
    meaningless on one node (and would need root to install).
-6. **Memory is oversubscribed.** The 2560 MB container pool overlaps swap, and
-   ~1.7 GB of RAM is held by the VS Code server. Milestone 3 sort timings will
+6. **Memory is tight.** Daemon ceilings (1792 MB), the 3840 MB container pool
+   and the ~1.7 GB VS Code server total ~7.3 GB of 7.7 GiB. Milestone 3 sort timings will
    be pessimistic and should not be compared against published results.
 7. **Installed under `$HOME`, not system paths**, because `sudo` needs a
    password. Functionally equivalent, but not how a production cluster is laid
@@ -421,7 +427,7 @@ Milestones 2 and 3 ask for.
 
 ## 9. Handover: what Milestone 3 does next
 
-The cluster is left **running** with the 1 GB dataset in place.
+The 1 GB dataset is in place. Check `jps` first, because the cluster may be down.
 
 1. Bring the cluster up if needed: `./scripts/03-start-cluster.sh`
 2. Decide the input size — **2 GB is the comfortable choice, 3 GB is now
@@ -437,7 +443,8 @@ The cluster is left **running** with the 1 GB dataset in place.
        "/user/$(id -un)/TPCx-HS-benchmark/HSsort-output"
    ```
    Expect to tune `NUM_REDUCERS` — HSSort is the memory-hungry step and the one
-   this VM is tight for.
+   this VM is tight for. Reducers are 1024 MB, so at most 3 run at once beside
+   the 768 MB ApplicationMaster.
 4. Run HSValidate (`TPCx-HS-master.sh:299`) and compare against the HSGen
    CHECKSUM recorded in §6. Note the kit's known
    `IndexOutOfBoundsException` issue (MAPREDUCE-6635) in `USER_GUIDE.txt`.
@@ -509,6 +516,20 @@ in a browser, or view the published copy at
 ---
 
 ## 12. Change log after the initial build
+
+**2026-11-05 — YARN pool 2560 → 3840 MB, minimum allocation 512 → 256 MB.**
+`NUM_MAPS=4` was not producing 4 concurrent maps. The scheduler rounds requests
+up to a multiple of the minimum allocation, so 768 MB became 1024 MB, and 2560 MB
+held only two containers: the ApplicationMaster and one map. The ResourceManager
+log shows no more than 2 containers at once in all 7 jobs it recorded, and the 1 GB
+HSGen run advanced 25% about every 4 s. The VM now has 7.7 GiB of RAM, which makes
+room for the larger pool.
+
+Checked with `hadoop-mapreduce-examples pi 4 100000`: YARN reports 3840 MB, and the
+log shows 5 containers of 768 MB running together, `used=<memory:3840, vCores:5>`.
+That is 5 vcores against a capacity of 4, which is allowed because
+`DefaultResourceCalculator` schedules on memory only. HSGen and HSSort have not been
+re-run since this change.
 
 **2026-11-04 — Grafana and InfluxDB removed from the VM.** They were holding
 ~288 MB of resident memory and ~1.8 GB of disk. Removal was requested by the

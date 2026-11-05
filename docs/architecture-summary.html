@@ -246,7 +246,7 @@
     <dl class="facts">
       <div class="fact"><dt>Guest</dt><dd>Ubuntu 22.04.5</dd></div>
       <div class="fact"><dt>Arch</dt><dd>aarch64</dd></div>
-      <div class="fact"><dt>Hardware</dt><dd>6 vCPU / 3.8 GiB</dd></div>
+      <div class="fact"><dt>Hardware</dt><dd>6 vCPU / 7.7 GiB</dd></div>
       <div class="fact"><dt>Java</dt><dd>Temurin 8u504</dd></div>
       <div class="fact"><dt>Hadoop</dt><dd>3.3.6</dd></div>
       <div class="fact"><dt>Kit</dt><dd>TPCx-HS 2.0.3</dd></div>
@@ -294,7 +294,7 @@
             <td class="rail">ResourceManager</td>
             <td><span class="pill comp">YARN</span></td>
             <td class="num">384 MB</td>
-            <td>Cluster scheduler. Owns the whole container pool &mdash; 2560&nbsp;MB and 4 vcores &mdash; and hands out leases.</td>
+            <td>Cluster scheduler. Owns the whole container pool &mdash; 3840&nbsp;MB and 4 vcores &mdash; and hands out leases.</td>
           </tr>
           <tr class="comp">
             <td class="rail">NodeManager</td>
@@ -331,7 +331,7 @@
           <g class="s-comp">
             <rect x="210" y="40" width="178" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
             <text class="svg-label" x="299" y="63" text-anchor="middle" fill="currentColor">ResourceManager</text>
-            <text class="svg-sub" x="299" y="80" text-anchor="middle" fill="currentColor">2560 MB / 4 vcores</text>
+            <text class="svg-sub" x="299" y="80" text-anchor="middle" fill="currentColor">3840 MB / 4 vcores</text>
 
             <rect x="470" y="40" width="178" height="52" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
             <text class="svg-label" x="559" y="63" text-anchor="middle" fill="currentColor">ApplicationMaster</text>
@@ -410,8 +410,10 @@
       <figcaption>
         Because HSGen is map-only, the dataset never lands on local disk as an
         intermediate copy &mdash; it goes from the mappers straight through the DataNode
-        into HDFS. That is why 1&nbsp;GB generates comfortably on a VM with ~1.7&nbsp;GiB
-        of free RAM: generation is write-bandwidth-bound, not memory-bound.
+        into HDFS. Generation is write-bandwidth-bound, not memory-bound: peak map physical
+        memory in the 1&nbsp;GB run was ~340&nbsp;MB. The 28.4-second run predates the YARN
+        fix of 2026-11-05 and ran its maps one at a time. The current pool fits all four
+        at once, and HSGen has not been re-timed since.
       </figcaption>
     </figure>
 
@@ -511,7 +513,7 @@
           <g class="s-flag">
             <path d="M 20 160 L 20 174 L 714 174 L 714 160" fill="none" stroke="currentColor" stroke-width="1.3"></path>
             <text class="svg-label" x="367" y="202" text-anchor="middle" fill="currentColor">peak on-disk demand &asymp; 3 &times; input</text>
-            <text class="svg-sub" x="367" y="226" text-anchor="middle" fill="currentColor">11 GB free &rarr; 2 GB is comfortable, 3 GB now reachable</text>
+            <text class="svg-sub" x="367" y="226" text-anchor="middle" fill="currentColor">9.4 GB free &rarr; 2 GB is comfortable, 3 GB is reachable</text>
             <text class="svg-sub" x="367" y="246" text-anchor="middle" fill="currentColor">a 3 GB input needs ~6 GB, leaving little slack for logs and retries</text>
           </g>
         </svg>
@@ -530,11 +532,11 @@
           <tr><th class="num">Input</th><th class="num">Sort needs</th><th class="num">Left over</th><th>Verdict</th></tr>
         </thead>
         <tbody>
-          <tr><td class="num">1 GB</td><td class="num">~2 GB</td><td class="num">~9 GB</td><td><span class="pill pass">chosen</span> &nbsp;comfortable headroom for Milestone&nbsp;3</td></tr>
-          <tr><td class="num">2 GB</td><td class="num">~4 GB</td><td class="num">~7 GB</td><td>safe if a larger set is wanted</td></tr>
-          <tr><td class="num">3 GB</td><td class="num">~6 GB</td><td class="num">~5 GB</td><td>reachable, but slack-poor for logs and retries</td></tr>
+          <tr><td class="num">1 GB</td><td class="num">~2 GB</td><td class="num">~7 GB</td><td><span class="pill pass">chosen</span> &nbsp;comfortable headroom for Milestone&nbsp;3</td></tr>
+          <tr><td class="num">2 GB</td><td class="num">~4 GB</td><td class="num">~5 GB</td><td>safe if a larger set is wanted</td></tr>
+          <tr><td class="num">3 GB</td><td class="num">~6 GB</td><td class="num">~3 GB</td><td>reachable, but slack-poor for logs and retries</td></tr>
         </tbody>
-        <caption>Figures are against 11&nbsp;GB free, after Grafana and InfluxDB were removed from the VM (they had held ~1.8&nbsp;GB of disk and ~288&nbsp;MB of RAM). HSGen takes 28 seconds, so regenerating at a different scale is cheap.</caption>
+        <caption>Figures are against 9.4&nbsp;GB free, measured on 2026-11-05. HSGen takes 28 seconds, so regenerating at a different scale is cheap.</caption>
       </table>
     </div>
   </section>
@@ -668,7 +670,7 @@
           <tr><td>Cluster Validation Suite</td><td><span class="pill flag">skipped</span></td>
               <td>Needs <code>clush</code>/<code>pdsh</code>, meaningless on one node and requiring root to install.</td></tr>
           <tr><td>Dedicated hardware</td><td><span class="pill flag">shared VM</span></td>
-              <td>~1.7&nbsp;GB of RAM is held by the resident VS Code server, and the container pool overlaps swap. Sort timings will be pessimistic.</td></tr>
+              <td>~1.7&nbsp;GB of RAM is held by the resident VS Code server, and at peak the daemons, container pool and server total ~7.3&nbsp;GB of 7.7&nbsp;GiB. Sort timings will be pessimistic.</td></tr>
         </tbody>
         <caption>What remains valid is the architecture and the functional correctness of the data path &mdash; which is what Milestones 2 and 3 ask for.</caption>
       </table>
@@ -678,7 +680,7 @@
   <section>
     <h2>Handing over to Milestone 3</h2>
     <p class="sub">
-      The cluster is left running with the 1&nbsp;GB dataset in place. These steps are a
+      The 1&nbsp;GB dataset is in place. Check <code>jps</code> first, because the cluster may be down. These steps are a
       real sequence &mdash; each depends on the one before it.
     </p>
     <div class="col">
@@ -687,12 +689,12 @@
           <code>./scripts/03-start-cluster.sh</code>. It waits for safe mode to clear and
           fails loudly if any daemon is missing.</li>
         <li><strong>Decide the input size.</strong> 1&nbsp;GB is in place; 2&nbsp;GB is the
-          comfortable choice and 3&nbsp;GB is now reachable. To change it, delete the existing dataset first &mdash;
+          comfortable choice and 3&nbsp;GB is reachable. To change it, delete the existing dataset first &mdash;
           <code>05-hsgen.sh</code> refuses to overwrite one &mdash; then
           <code>./scripts/05-hsgen.sh 2</code>.</li>
         <li><strong>Run HSSort</strong> with the kit's own command line from
           <code>TPCx-HS-master.sh:265</code>. Expect to tune <code>NUM_REDUCERS</code>:
-          this is the memory-hungry phase and the one the VM is tight for.</li>
+          this is the memory-hungry phase and the one the VM is tight for. Reducers are 1024&nbsp;MB, so at most 3 run at once beside the 768&nbsp;MB ApplicationMaster.</li>
         <li><strong>Run HSValidate</strong> and compare against the HSGen checksum above.
           The kit's <code>USER_GUIDE.txt</code> documents a known
           <code>IndexOutOfBoundsException</code> here (MAPREDUCE-6635) with specific
