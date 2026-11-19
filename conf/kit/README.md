@@ -27,5 +27,4 @@ Obtain the kit from <https://www.tpc.org/tpcx-hs/> and unpack it to
 | `NUM_REDUCERS` | `4` | `768` |
 | `SLEEP_BETWEEN_RUNS` | `10` | `60` |
 
-Rationale for each is in the header comment of the file itself, and the wider
-analysis of the kit is in [`../../docs/KIT-INTEGRATION.md`](../../docs/KIT-INTEGRATION.md).
+Rationale for each is in the header comment of the file itself.

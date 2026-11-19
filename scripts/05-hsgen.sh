@@ -35,7 +35,7 @@ set -euo pipefail
 KIT_HOME="${KIT_HOME:-${KIT_ROOT}/TPCx-HS-Runtime-Suite}"
 PARAMS="${REPO_DIR}/conf/kit/Benchmark_Parameters.sh"
 
-[ -d "${KIT_HOME}" ] || die "Kit not found at ${KIT_HOME}. See docs/KIT-INTEGRATION.md"
+[ -d "${KIT_HOME}" ] || die "Kit not found at ${KIT_HOME}."
 [ -f "${PARAMS}"  ] || die "Missing ${PARAMS}"
 # shellcheck source=/dev/null
 . "${PARAMS}"
