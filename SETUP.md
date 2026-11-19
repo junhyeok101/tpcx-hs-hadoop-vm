@@ -77,7 +77,7 @@ be inspected, backed up or deleted as one unit and `$HOME` stays clean:
 
 ```
 ~/project/
-├── tpcxhs-m2/              this repository
+├── big_data_benchmark/      this repository
 ├── TPCx-HS_Kit_v2.0.3/     the kit (not committed -- see below)
 ├── opt/                    java8/ and hadoop/ (installed by 01-install.sh)
 └── hadoop-data/            nn/ dn/ tmp/ logs/ pids/ yarn/ (cluster state)
@@ -85,8 +85,8 @@ be inspected, backed up or deleted as one unit and `$HOME` stays clean:
 
 ```bash
 mkdir -p ~/project && cd ~/project
-git clone <this repo> tpcxhs-m2        # or copy the directory across
-cd tpcxhs-m2
+git clone https://github.com/jhkki034/big_data_benchmark.git
+cd big_data_benchmark
 ```
 
 `opt/` and `hadoop-data/` are created for you. To use a different root, set
@@ -109,7 +109,7 @@ On a non-aarch64 guest, edit `HADOOP_VERSION`, `HADOOP_TARBALL`,
 ### 2.3 Run the build
 
 ```bash
-cd ~/project/tpcxhs-m2
+cd ~/project/big_data_benchmark
 ./scripts/00-preflight.sh      # checks arch, CPU, RAM, swap, disk, commands,
                                # sshd, the kit, and every download mirror.
                                # Fix anything marked FAIL before continuing.

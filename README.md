@@ -87,10 +87,9 @@ The TPCx-HS kit is **not** included (its EULA forbids redistribution). Download
 it from <https://www.tpc.org/tpcx-hs/> and unpack it to
 `~/project/TPCx-HS_Kit_v2.0.3`, or `export KIT_HOME=/path/to/TPCx-HS-Runtime-Suite`.
 
-```bash
-mkdir -p ~/project && cd ~/project
-git clone <this repo> tpcxhs-m2 && cd tpcxhs-m2
+Run from the root of this repository:
 
+```bash
 ./scripts/00-preflight.sh      # checks arch, RAM, disk, sshd, kit, mirrors
 ./scripts/01-install.sh        # JDK 8 + Hadoop 3.3.6 under ~/project/opt, apply conf/
 ./scripts/01b-setup-ssh.sh     # passwordless ssh to localhost
