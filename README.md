@@ -77,10 +77,7 @@ Full description with diagrams, record layout and the validation logic:
 
 ## Results
 
-> 📄 **Full report** — method, all runs, per-phase breakdown, discussion:
-> **[English → workload/RESULTS.md](workload/RESULTS.md)** · **[한국어 → workload/REPORT_KO.md](workload/REPORT_KO.md)**
->
-> Raw per-run data: [workload/runs/](workload/runs/) · Figures: [workload/figures/](workload/figures/)
+**Full report:** [English](workload/RESULTS.md) · [한국어](workload/REPORT_KO.md)
 
 ### At a glance
 
@@ -122,10 +119,6 @@ Same 1 GB dataset and YARN pool; only how the work is split changes.
   reducers concentrate the merge (**+17 %** at 1); 64 MB maps pay start-up cost
   four waves over (**+31 %** at 16). HSValidate takes ~35 s whatever the setting.
 
-➡️ Details: [Experiment 1](workload/RESULTS.md#experiment-1-number-of-reducers) ·
-[Experiment 2](workload/RESULTS.md#experiment-2-number-of-maps) ·
-[한국어 Part 1](workload/REPORT_KO.md#part-1-성능-분석-performance-analysis)
-
 ### Part 2 · Scalability test
 
 Best setting from Part 1 (3 reducers); data size and resources grow.
@@ -153,10 +146,6 @@ Best setting from Part 1 (3 reducers); data size and resources grow.
   2 GB on, and no memory wall up to 8 GB.
 - **Resources:** 4× the containers → 3.2× faster (~80 % efficiency). Returns
   diminish past 1×, most likely because all containers share one disk.
-
-➡️ Details: [Experiment 3](workload/RESULTS.md#experiment-3-scalability--data-size) ·
-[Experiment 4](workload/RESULTS.md#experiment-4-scalability--resources) ·
-[한국어 Part 2](workload/REPORT_KO.md#part-2-확장성-테스트-scalability-test)
 
 ### Data quality
 
