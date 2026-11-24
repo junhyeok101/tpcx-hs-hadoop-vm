@@ -1,5 +1,7 @@
 # Results
 
+> 한국어로 쉽게 정리한 버전: [REPORT_KO.md](REPORT_KO.md) · Back to the [project page](../README.md)
+
 ## Status
 
 | Phase | Measured | Where |
@@ -84,6 +86,13 @@ checksum        4c49607ac53602
 PASS when the output contains no `misorder` / `bad key` line **and** this
 checksum equals HSGen's (order and preservation, see
 [workload/README.md](README.md#3-hsvalidate--correctness)).
+
+---
+
+## Part 1 · Performance analysis
+
+*How should the same 1 GB be split up to sort fastest?* Data and YARN pool are
+fixed; only the number of reducers (Experiment 1) and maps (Experiment 2) changes.
 
 ## Experiment 1: number of reducers
 
@@ -188,6 +197,14 @@ All 9 HSValidate runs PASS.
   per-task start-up cost; the map phase alone grows by ~21 s. Smaller map
   outputs make the tail slightly shorter (14.2 s), nowhere near enough to pay
   for it.
+
+---
+
+## Part 2 · Scalability test
+
+*What happens when the data or the resources grow?* Starting from the best
+setting of Part 1 (3 reducers), the dataset grows from 1 to 8 GB (Experiment 3)
+and the YARN pool from 0.5× to 2× (Experiment 4).
 
 ## Experiment 3: scalability — data size
 
