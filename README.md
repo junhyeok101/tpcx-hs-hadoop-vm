@@ -23,7 +23,7 @@ and the validation pass behave as the configuration is changed.
 
 | Milestone | Scope | Status |
 |-----------|-------|--------|
-| 2 | Architecture design, Hadoop build, HSGen 1 GB, verification | **Done** |
+| 2 | Architecture design, Hadoop build, HSGen 1 GB, verification | **Done** — on the Mac VM, in [jhkki034/big_data_benchmark](https://github.com/jhkki034/big_data_benchmark) |
 | 3 | HSSort / HSValidate performance analysis, scalability test, this GitHub page | **Done** — reducers 1–7, maps 4/8/16, data 1–8 GB, YARN pool 0.5×–2× ([results](workload/RESULTS.md)) |
 
 ## System description
