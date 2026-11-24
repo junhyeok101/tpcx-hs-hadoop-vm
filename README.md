@@ -77,54 +77,93 @@ Full description with diagrams, record layout and the validation logic:
 
 ## Results
 
-Milestone 2 (measured): HSGen of 1 GB took **28.4 s** with 4 maps. The dataset
-was verified byte-for-byte against an independent regeneration.
+> 📄 **Full report** — method, all runs, per-phase breakdown, discussion:
+> **[English → workload/RESULTS.md](workload/RESULTS.md)** · **[한국어 → workload/REPORT_KO.md](workload/REPORT_KO.md)**
+>
+> Raw per-run data: [workload/runs/](workload/runs/) · Figures: [workload/figures/](workload/figures/)
 
-Milestone 3 (measured on WSL2, 1 GB, 3 runs per setting, medians) — full tables,
-per-phase breakdown and discussion in [workload/RESULTS.md](workload/RESULTS.md):
+### At a glance
+
+| | Question | Answer |
+|---|---|---|
+| **Part 1 · Performance** | How should 1 GB be split up to sort fastest? | **3 reducers, 4–8 maps → ~57–59 s.** The YARN container pool, not the hardware, is the limit. |
+| **Part 2 · Scalability** | What happens when data or resources grow? | **Data:** 8× the data in 6.3× the time. **Resources:** 4× the containers → 3.2× faster. |
+| **Correctness** | Was every sort right? | **63 / 63** HSValidate runs passed, each against its dataset's HSGen checksum. |
+
+Milestone 3 was measured on WSL2 (see [System description](#system-description)),
+3 runs per setting, medians reported. Milestone 2 (Mac VM): HSGen of 1 GB took
+**28.4 s** with 4 maps, verified byte-for-byte against an independent regeneration.
+
+### Part 1 · Performance analysis
+
+Same 1 GB dataset and YARN pool; only how the work is split changes.
 
 <p>
   <img src="workload/figures/m3-reducers.png" width="49%" alt="HSSort phases by number of reducers">
   <img src="workload/figures/m3-maps.png" width="49%" alt="HSSort phases by number of maps">
 </p>
 
-| HSSort setting | 1 | 2 | **3** | 4 | 5 | 6 | 7 |
-|----------------|---|---|---|---|---|---|---|
-| Reducers (8 maps), s | 68.8 | 63.6 | **59.0** | 70.5 | 64.5 | 65.4 | 69.3 |
+**Experiment 1 — number of reducers** (8 maps)
 
-| HSSort setting | 4 | 8 | 16 |
-|----------------|---|---|---|
-| Maps (3 reducers), s | **56.9** | 58.1 | 76.3 |
+| Reducers | 1 | 2 | **3** | 4 | 5 | 6 | 7 |
+|----------|---|---|---|---|---|---|---|
+| HSSort, s | 68.8 | 63.6 | **59.0** | 70.5 | 64.5 | 65.4 | 69.3 |
 
-- Best: **~57–59 s** with 3 reducers and 4 or 8 maps. HSValidate takes ~35 s
-  whatever the HSSort setting.
-- The limit is the YARN pool: performance is best when each phase fits its
-  slots (4 maps, 3 reducers). One reducer more than fits adds a second reduce
-  wave (+19 % at 4); too few reducers concentrate the merge (+17 % at 1);
-  64 MB maps pay start-up cost four waves over (+31 % at 16).
-Scalability (3 reducers):
+**Experiment 2 — number of maps** (3 reducers)
+
+| Maps (split size) | 4 (250 MB) | 8 (128 MB) | 16 (64 MB) |
+|-------------------|---|---|---|
+| HSSort, s | **56.9** | 58.1 | 76.3 |
+
+- The pool fits **4 maps or 3 reducers** at a time, and performance is best when
+  each phase fits its slots. The map phase stays at ~35–40 s; the differences
+  are in shuffle + reduce.
+- One reducer more than fits adds a second reduce wave (**+19 %** at 4); too few
+  reducers concentrate the merge (**+17 %** at 1); 64 MB maps pay start-up cost
+  four waves over (**+31 %** at 16). HSValidate takes ~35 s whatever the setting.
+
+➡️ Details: [Experiment 1](workload/RESULTS.md#experiment-1-number-of-reducers) ·
+[Experiment 2](workload/RESULTS.md#experiment-2-number-of-maps) ·
+[한국어 Part 1](workload/REPORT_KO.md#part-1-성능-분석-performance-analysis)
+
+### Part 2 · Scalability test
+
+Best setting from Part 1 (3 reducers); data size and resources grow.
 
 <p>
   <img src="workload/figures/m3-scale-data.png" width="49%" alt="HSSort vs data size">
   <img src="workload/figures/m3-scale-resources.png" width="49%" alt="HSSort speed-up vs YARN pool">
 </p>
 
+**Experiment 3 — data size** (YARN pool 3840 MB)
+
 | Data size | 1 GB | 2 GB | 4 GB | 8 GB |
 |-----------|------|------|------|------|
 | HSSort, s | 56.0 | 93.4 | 186.1 | 354.3 |
+| s per GB | 56.0 | 46.7 | 46.5 | 44.3 |
 
-| YARN pool (2 GB) | 0.5× | 1× | 2× |
-|------------------|------|----|----|
+**Experiment 4 — resources** (2 GB; reducers = reducer slots of each pool)
+
+| YARN pool | 0.5× (1920 MB) | 1× (3840 MB) | 2× (7680 MB) |
+|-----------|------|----|----|
 | HSSort, s | 224.1 | 93.4 | 69.5 |
-| Speed-up | 1.00 | 2.40 | 3.22 |
+| Speed-up vs 0.5× | 1.00 | 2.40 | 3.22 |
 
-- **Data:** 8× the data in 6.3× the time, ~45 s per GB from 2 GB on; no memory
-  wall up to 8 GB.
-- **Resources:** 4× the containers → 3.2× faster; returns diminish past 1×,
-  most likely because all containers share one disk.
-- Earlier trial runs predate the YARN fix of 2026-11-05 and are discarded; runs
-  disturbed by host load (identified by slow setup and HSValidate times) are
-  documented and excluded — 63 / 63 HSValidate runs passed in total.
+- **Data:** 8× the data in 6.3× the time — better than linear; ~45 s per GB from
+  2 GB on, and no memory wall up to 8 GB.
+- **Resources:** 4× the containers → 3.2× faster (~80 % efficiency). Returns
+  diminish past 1×, most likely because all containers share one disk.
+
+➡️ Details: [Experiment 3](workload/RESULTS.md#experiment-3-scalability--data-size) ·
+[Experiment 4](workload/RESULTS.md#experiment-4-scalability--resources) ·
+[한국어 Part 2](workload/REPORT_KO.md#part-2-확장성-테스트-scalability-test)
+
+### Data quality
+
+Earlier trial runs predate the YARN fix of 2026-11-05 and are discarded. Runs
+disturbed by host load — identified by setup and HSValidate times that do not
+depend on the setting — were excluded and re-measured; they stay in the raw
+data. See [Discarded runs](workload/RESULTS.md#discarded-runs).
 
 ## Execution commands
 
@@ -202,7 +241,8 @@ not the hardware, is the limit. Software is installed under `$HOME` because
 ├── scripts/              numbered build/run scripts: 00 … 07 build, 08 … 12 Milestone 3, 99 optional
 └── workload/
     ├── README.md         the benchmark workload and dataset
-    ├── RESULTS.md        Milestone 3 method, results and discussion
+    ├── RESULTS.md        Milestone 3 report (English): method, results, discussion
+    ├── REPORT_KO.md      Milestone 3 report (Korean), Part 1 / Part 2
     ├── figures/          the four Milestone 3 charts and the script that draws them
     └── runs/             raw per-run TSVs behind RESULTS.md
 ```
