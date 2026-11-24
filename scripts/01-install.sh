@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install JDK 8 + Hadoop 3.3.6 (aarch64) under $HOME and apply the TPCx-HS
+# Install JDK 8 + Hadoop 3.3.6 (aarch64 or x86_64) under $HOME and apply the TPCx-HS
 # pseudo-distributed configuration. No root privileges required.
 set -euo pipefail
 . "$(dirname "$0")/00-env.sh"
@@ -7,8 +7,11 @@ set -euo pipefail
 DL_DIR="${REPO_DIR}/downloads"
 mkdir -p "${DL_DIR}" "${OPT_DIR}"
 
-log "1/5 Verifying host is aarch64"
-[ "$(uname -m)" = "aarch64" ] || die "This script pins aarch64 binaries; host is $(uname -m)."
+log "1/5 Verifying host architecture"
+case "$(uname -m)" in
+  aarch64|x86_64) echo "$(uname -m): ${HADOOP_TARBALL}, ${JDK_TARBALL}" ;;
+  *) die "Unsupported architecture $(uname -m) (aarch64 and x86_64 only)." ;;
+esac
 
 log "2/5 Fetching tarballs (resumable, mirror fallback)"
 
@@ -28,13 +31,22 @@ else
   while read -r url; do
     [ -n "${url}" ] || continue
     echo "  trying $(echo "${url}" | cut -d/ -f3)"
-    if wget "${WGET_OPTS[@]}" -O "${HADOOP_FILE}" "${url}"; then got=1; break; fi
+    if wget "${WGET_OPTS[@]}" -O "${HADOOP_FILE}" "${url}"; then got=1; GOT_URL="${url}"; break; fi
     echo "  -> failed or stalled, next mirror"
   done <<< "${HADOOP_MIRRORS}"
   [ "${got}" -eq 1 ] || die "All mirrors failed. Mirrors tried:
 ${HADOOP_MIRRORS}"
 fi
 
+# No pinned digest for this arch: take the published one. archive.apache.org
+# is tried last because it keeps every release's .sha512 permanently.
+if [ -z "${HADOOP_SHA512:-}" ]; then
+  for u in ${GOT_URL:-} $(echo "${HADOOP_MIRRORS}" | tail -1); do
+    HADOOP_SHA512="$(wget -q -T 20 -O - "${u}.sha512" 2>/dev/null \
+                     | grep -oiE '[0-9a-f]{128}' | head -1 | tr 'A-F' 'a-f')" || true
+    [ -n "${HADOOP_SHA512}" ] && { echo "published SHA512 from $(echo "${u}" | cut -d/ -f3)"; break; }
+  done
+fi
 if [ -n "${HADOOP_SHA512:-}" ]; then
   echo "${HADOOP_SHA512}  ${HADOOP_FILE}" | sha512sum -c - \
     || die "SHA512 mismatch on ${HADOOP_FILE}. Delete it and re-run."

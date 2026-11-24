@@ -213,10 +213,13 @@ The 1 GB dataset is in place. Check `jps` first, because the cluster may be down
    | Ordering | one mapper per file checks keys are non-decreasing; the single reducer checks the `:begin`/`:end` keys of adjacent files join up | `HSValidate.java:85-89`, `:137-143` |
    | Preservation | per-record CRC32 summed into a 128-bit accumulator — **addition commutes, so sorting must not change the sum** | `HSValidate.java:92-96` vs `HSGen.java:232-235` |
 
-   Judging the result is inverted from the usual convention: **an empty output
-   directory is the pass.** Any content is the problem report
-   (`misorder in <file> between ...` or `bad key partitioning: ...`) — see the
-   class comment at `HSValidate.java:48-49`.
+   Judging the result: on a pass the output holds one line, the checksum in hex
+   (`checksum 4c49607ac53602` = `21472776955442690`, the HSGen CHECKSUM). Problem
+   lines (`misorder in <file> between ...` or `bad key partitioning: ...`) mean a
+   failure. Pass = no problem line **and** checksum equal to HSGen's. The output
+   directory is *not* empty on a pass, whatever the class comment at
+   `HSValidate.java:48-49` suggests — every Milestone 3 run wrote the checksum
+   line. `scripts/08-hssort-validate.sh` applies exactly this rule.
 
    This logic is scale-independent. The 1 GB dataset makes the run
    unpublishable (see the README's deviations table) but does not weaken the correctness proof at all: it is

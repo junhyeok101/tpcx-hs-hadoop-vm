@@ -24,9 +24,24 @@ export HADOOP_COMMON_LIB_NATIVE_DIR="${HADOOP_HOME}/lib/native"
 export LD_LIBRARY_PATH="${HADOOP_HOME}/lib/native:${LD_LIBRARY_PATH:-}"
 export PATH="${JAVA_HOME}/bin:${HADOOP_HOME}/bin:${HADOOP_HOME}/sbin:${PATH}"
 
-# Versions pinned for Milestone 2 (aarch64 / Ubuntu 22.04)
+# Versions pinned for Milestone 2 (aarch64 / Ubuntu 22.04); x86_64 added for
+# Milestone 3 on WSL2. Same Hadoop and JDK versions, only the binaries differ.
 export HADOOP_VERSION="3.3.6"
-export HADOOP_TARBALL="hadoop-${HADOOP_VERSION}-aarch64.tar.gz"
+case "$(uname -m)" in
+  aarch64)
+    export HADOOP_TARBALL="hadoop-${HADOOP_VERSION}-aarch64.tar.gz"
+    # Published SHA512 for hadoop-3.3.6-aarch64.tar.gz. Verified during the build;
+    # the upstream .sha512 file labels itself "-RC1" but the digest is this artifact's.
+    export HADOOP_SHA512="b0a485c5ae0d97b08285bb83a3dd78b834153b2bd53f96ac301852862ccaff139f2c547aee808d5ad4afdc3a204b1c3b6ba459ea83ebf2779e9c129f37c69059"
+    JDK_ARCH="aarch64" ;;
+  x86_64)
+    export HADOOP_TARBALL="hadoop-${HADOOP_VERSION}.tar.gz"
+    # Empty: 01-install.sh fetches the published .sha512 next to the tarball.
+    export HADOOP_SHA512=""
+    JDK_ARCH="x64" ;;
+  *)
+    export HADOOP_TARBALL="unsupported-arch"; export HADOOP_SHA512=""; JDK_ARCH="unsupported" ;;
+esac
 # Mirrors are tried in order. dlcdn.apache.org is the canonical source but was
 # measured at ~180 KB/s and stalling outright during this build; mirror.kakao.com
 # served the same file at ~1.8 MB/s. All three honour HTTP range requests, so a
@@ -37,11 +52,8 @@ https://mirror.kakao.com/apache/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_
 https://ftp.kaist.ac.kr/apache/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_TARBALL}
 https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_TARBALL}"
 export HADOOP_URL="$(echo "${HADOOP_MIRRORS}" | head -1)"
-# Published SHA512 for hadoop-3.3.6-aarch64.tar.gz. Verified during the build;
-# the upstream .sha512 file labels itself "-RC1" but the digest is this artifact's.
-export HADOOP_SHA512="b0a485c5ae0d97b08285bb83a3dd78b834153b2bd53f96ac301852862ccaff139f2c547aee808d5ad4afdc3a204b1c3b6ba459ea83ebf2779e9c129f37c69059"
-export JDK_TARBALL="temurin8-aarch64.tar.gz"
-export JDK_URL="https://api.adoptium.net/v3/binary/latest/8/ga/linux/aarch64/jdk/hotspot/normal/eclipse"
+export JDK_TARBALL="temurin8-${JDK_ARCH}.tar.gz"
+export JDK_URL="https://api.adoptium.net/v3/binary/latest/8/ga/linux/${JDK_ARCH}/jdk/hotspot/normal/eclipse"
 
 log()  { printf '\n[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 die()  { printf '\nERROR: %s\n' "$*" >&2; exit 1; }

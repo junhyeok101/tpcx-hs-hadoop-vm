@@ -1,9 +1,10 @@
 # TPCx-HS on a Single-Node Hadoop VM
 
 Running the **TPCx-HS v2.0.3** big-data benchmark (HSGen → HSSort → HSValidate,
-MapReduce) on a single ARM64 virtual machine, at a scale far below the
-specification's minimum, to study how the benchmark's three phases behave on a
-memory- and disk-constrained system.
+MapReduce) on a single node — an ARM64 VM for Milestone 2, an x86_64 WSL2 host
+with the identical Hadoop configuration for Milestone 3 — at a scale far below
+the specification's minimum, to study how the benchmark's three phases behave
+on a memory-constrained configuration.
 
 Yonsei University, Big Data course project, 2026-2. Milestones 2 and 3.
 
@@ -23,20 +24,24 @@ and the validation pass behave as the configuration is changed.
 | Milestone | Scope | Status |
 |-----------|-------|--------|
 | 2 | Architecture design, Hadoop build, HSGen 1 GB, verification | **Done** |
-| 3 | HSSort / HSValidate measurement, results, this GitHub page | **In progress** — measurements not yet recorded, see [results](workload/RESULTS.md) |
+| 3 | HSSort / HSValidate performance analysis, scalability test, this GitHub page | **Done** — reducers 1–7, maps 4/8/16, data 1–8 GB, YARN pool 0.5×–2× ([results](workload/RESULTS.md)) |
 
 ## System description
 
 One host, pseudo-distributed Hadoop: five daemons in five JVMs over loopback.
 
-| | |
-|---|---|
-| Platform | UTM VM on macOS, Ubuntu 22.04 aarch64 |
-| Resources | 6 vCPU, 7.7 GiB RAM, 3.8 GiB swap, 30 GB disk |
-| Software | Hadoop 3.3.6 (aarch64 native libs), Temurin JDK 8, TPCx-HS kit v2.0.3 (MR2 jar) |
-| Daemons | NameNode, DataNode, SecondaryNameNode, ResourceManager, NodeManager |
-| YARN pool | 3840 MB / 4 vcores: ApplicationMaster + 4 maps at 768 MB |
-| HDFS | replication 1, 128 MB blocks, `hdfs://localhost:8020` |
+| | Milestone 2 | Milestone 3 |
+|---|---|---|
+| Platform | UTM VM on macOS, Ubuntu 22.04 aarch64 | WSL2 on Windows, Ubuntu 24.04.2 x86_64 |
+| Resources | 6 vCPU, 7.7 GiB RAM, 3.8 GiB swap, 30 GB disk | 20 vCPU, 15.4 GiB RAM, 4 GiB swap, 940 GB free |
+| Software | Hadoop 3.3.6, Temurin JDK 8, TPCx-HS kit v2.0.3 (MR2 jar) — native libs for each arch | same |
+| Daemons | NameNode, DataNode, SecondaryNameNode, ResourceManager, NodeManager | same |
+| YARN pool | 3840 MB / 4 vcores: ApplicationMaster + 4 maps at 768 MB, or AM + 3 reducers at 1024 MB | **same, on purpose** |
+| HDFS | replication 1, 128 MB blocks, `hdfs://localhost:8020` | same |
+
+The WSL2 host is larger than the YARN pool it is given; the pool was kept equal
+to the Mac VM's so that both run the same configuration. The same 1 GB dataset
+(identical HSGen CHECKSUM) was regenerated on it.
 
 ### Technical details
 
@@ -75,11 +80,51 @@ Full description with diagrams, record layout and the validation logic:
 Milestone 2 (measured): HSGen of 1 GB took **28.4 s** with 4 maps. The dataset
 was verified byte-for-byte against an independent regeneration.
 
-Milestone 3 HSSort / HSValidate timings: [workload/RESULTS.md](workload/RESULTS.md).
-That page lists the measurement protocol and the table to fill; **no
-HSSort/HSValidate number is reported anywhere in this repository until it has
-been measured on the post-fix configuration.** Earlier trial runs predate the
-YARN fix of 2026-11-05 and are deliberately discarded.
+Milestone 3 (measured on WSL2, 1 GB, 3 runs per setting, medians) — full tables,
+per-phase breakdown and discussion in [workload/RESULTS.md](workload/RESULTS.md):
+
+<p>
+  <img src="workload/figures/m3-reducers.png" width="49%" alt="HSSort phases by number of reducers">
+  <img src="workload/figures/m3-maps.png" width="49%" alt="HSSort phases by number of maps">
+</p>
+
+| HSSort setting | 1 | 2 | **3** | 4 | 5 | 6 | 7 |
+|----------------|---|---|---|---|---|---|---|
+| Reducers (8 maps), s | 68.8 | 63.6 | **59.0** | 70.5 | 64.5 | 65.4 | 69.3 |
+
+| HSSort setting | 4 | 8 | 16 |
+|----------------|---|---|---|
+| Maps (3 reducers), s | **56.9** | 58.1 | 76.3 |
+
+- Best: **~57–59 s** with 3 reducers and 4 or 8 maps. HSValidate takes ~35 s
+  whatever the HSSort setting.
+- The limit is the YARN pool: performance is best when each phase fits its
+  slots (4 maps, 3 reducers). One reducer more than fits adds a second reduce
+  wave (+19 % at 4); too few reducers concentrate the merge (+17 % at 1);
+  64 MB maps pay start-up cost four waves over (+31 % at 16).
+Scalability (3 reducers):
+
+<p>
+  <img src="workload/figures/m3-scale-data.png" width="49%" alt="HSSort vs data size">
+  <img src="workload/figures/m3-scale-resources.png" width="49%" alt="HSSort speed-up vs YARN pool">
+</p>
+
+| Data size | 1 GB | 2 GB | 4 GB | 8 GB |
+|-----------|------|------|------|------|
+| HSSort, s | 56.0 | 93.4 | 186.1 | 354.3 |
+
+| YARN pool (2 GB) | 0.5× | 1× | 2× |
+|------------------|------|----|----|
+| HSSort, s | 224.1 | 93.4 | 69.5 |
+| Speed-up | 1.00 | 2.40 | 3.22 |
+
+- **Data:** 8× the data in 6.3× the time, ~45 s per GB from 2 GB on; no memory
+  wall up to 8 GB.
+- **Resources:** 4× the containers → 3.2× faster; returns diminish past 1×,
+  most likely because all containers share one disk.
+- Earlier trial runs predate the YARN fix of 2026-11-05 and are discarded; runs
+  disturbed by host load (identified by slow setup and HSValidate times) are
+  documented and excluded — 63 / 63 HSValidate runs passed in total.
 
 ## Execution commands
 
@@ -104,16 +149,28 @@ Milestone 3 phases (command lines taken from the kit's own driver):
 ```bash
 D=/user/$(id -un)/TPCx-HS-benchmark
 hadoop jar $KIT_HOME/TPCx-HS-master_MR2.jar HSSort \
-    -Dmapreduce.job.maps=4 -Dmapreduce.job.reduces=4 $D/HSsort-input $D/HSsort-output
+    -Dmapreduce.job.maps=4 -Dmapreduce.job.reduces=3 $D/HSsort-input $D/HSsort-output
 hadoop jar $KIT_HOME/TPCx-HS-master_MR2.jar HSValidate $D/HSsort-output $D/HSvalidate
-hdfs dfs -ls $D/HSvalidate     # empty output directory = PASS
+hdfs dfs -cat $D/HSvalidate/part-*   # PASS: only "checksum 4c49607ac53602" (= HSGen CHECKSUM)
+```
+
+The same, timed and repeated, as used for the results:
+
+```bash
+./scripts/08-hssort-validate.sh 3          # HSSort + HSValidate, 3 reducers, 3 runs
+./scripts/09-hssort-validate-maps.sh 16 3  # 16 maps (via split size), 3 reducers, 3 runs
+./scripts/10-phase-breakdown.sh            # setup / map / tail per run, from the saved logs
+./scripts/11-batch-unattended.sh           # the 2026-11-24 batch, with hang protection
+./scripts/12-scalability-batch.sh          # data 1/2/4/8 GB + YARN pool 0.5x/1x/2x, restores config
 ```
 
 Everything is derived from `$HOME` and the current username, so no path edits
 are needed on another machine. Expect ~5–15 min for `01-install.sh` (711 MB
 download; it tries several mirrors because the default one stalls), seconds for
 the rest, ~30 s for HSGen. `openssh-server` must be installed or no daemon
-starts; `00-preflight.sh` checks for it.
+starts; `00-preflight.sh` checks for it. Both aarch64 and x86_64 are supported:
+`00-env.sh` picks the matching Hadoop tarball and JDK, so the same steps work in
+a UTM VM on Apple Silicon and in WSL2 on a PC.
 
 **Full setup guide for a fresh VM** (VM sizing, kit location, build pitfalls, SSH, and how to run
 Milestone 3): [SETUP.md](SETUP.md).
@@ -122,14 +179,16 @@ Milestone 3): [SETUP.md](SETUP.md).
 
 | Specification | This project | Why |
 |---------------|--------------|-----|
-| Scale factor ≥ 1 TB | 1 GB | ~10 GB of usable HDFS |
+| Scale factor ≥ 1 TB | 1 GB (performance), 1–8 GB (scalability) | ~10 GB of usable HDFS on the Mac VM; 1 GB kept as the baseline so results compare |
 | Replication ≥ 3 | 1 | one node |
 | Cluster of nodes | one VM | course constraint |
 | `TPCx-HS-master.sh` driver | HSGen/HSSort/HSValidate invoked directly | the driver's smallest scale is 100 GB, it deletes data unprompted and needs `sudo` |
 | Cluster Validation Suite | skipped | needs `clush`/`pdsh`; meaningless on one node |
 
-Also: daemons and heaps share ~7.7 GiB with the editor server, so timings are
-pessimistic, and software is installed under `$HOME` because `sudo` needs a password.
+Also: on the Mac VM, daemons and heaps share ~7.7 GiB with the editor server, so
+timings are pessimistic; on WSL2 the host has spare capacity and the YARN pool,
+not the hardware, is the limit. Software is installed under `$HOME` because
+`sudo` needs a password.
 
 ## Repository layout
 
@@ -140,10 +199,12 @@ pessimistic, and software is installed under `$HOME` because `sudo` needs a pass
 │   ├── hadoop/           core/hdfs/yarn/mapred-site, hadoop-env, workers
 │   └── kit/              our TPCx-HS parameter overlay (no kit files)
 ├── SETUP.md              build the cluster on a fresh VM, run Milestone 3
-├── scripts/              numbered build/run scripts, 00 … 07, plus 99 (optional)
+├── scripts/              numbered build/run scripts: 00 … 07 build, 08 … 12 Milestone 3, 99 optional
 └── workload/
     ├── README.md         the benchmark workload and dataset
-    └── RESULTS.md        measurement protocol and results
+    ├── RESULTS.md        Milestone 3 method, results and discussion
+    ├── figures/          the four Milestone 3 charts and the script that draws them
+    └── runs/             raw per-run TSVs behind RESULTS.md
 ```
 
 ## Licence note

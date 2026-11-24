@@ -13,13 +13,10 @@ warn() { printf '  \033[33mWARN\033[0m  %s\n' "$*"; }
 
 echo "=== Architecture and OS ==="
 arch="$(uname -m)"
-if [ "${arch}" = "aarch64" ]; then
-  ok "aarch64 — matches the pinned JDK and Hadoop tarballs"
-else
-  bad "architecture is ${arch}, but 00-env.sh pins aarch64 binaries.
-        Edit HADOOP_TARBALL/HADOOP_URL/JDK_URL in 00-env.sh for ${arch}
-        (Hadoop ships hadoop-<ver>.tar.gz for x86_64)."
-fi
+case "${arch}" in
+  aarch64|x86_64) ok "${arch} — 00-env.sh selects ${HADOOP_TARBALL} and the ${JDK_ARCH} JDK" ;;
+  *) bad "architecture is ${arch}; 00-env.sh only knows aarch64 and x86_64." ;;
+esac
 if [ -r /etc/os-release ]; then
   . /etc/os-release
   ok "${PRETTY_NAME:-unknown}"

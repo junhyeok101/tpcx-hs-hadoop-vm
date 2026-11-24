@@ -19,7 +19,7 @@ export HDFS_SECONDARYNAMENODE_OPTS="-Xmx256m"
 export YARN_RESOURCEMANAGER_OPTS="-Xmx384m"
 export YARN_NODEMANAGER_OPTS="-Xmx384m"
 
-# Silence the "Unable to load native-hadoop library" warning: the aarch64
-# tarball ships real ARM64 .so files, they just need to be on the path.
+# Silence the "Unable to load native-hadoop library" warning: the Hadoop
+# tarball ships real .so files for its arch, they just need to be on the path.
 export HADOOP_OPTS="${HADOOP_OPTS:-} -Djava.library.path=${HADOOP_HOME}/lib/native"
 export LD_LIBRARY_PATH="${HADOOP_HOME}/lib/native:${LD_LIBRARY_PATH:-}"

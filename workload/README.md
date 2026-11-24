@@ -90,9 +90,13 @@ Two independent properties are checked; both are needed.
 | **Order** | one mapper per output file checks keys are non-decreasing; one reducer checks that each file's first key follows the previous file's last key | passes even if records were dropped |
 | **Preservation** | per-record CRC32 summed into a 128-bit accumulator; addition commutes, so sorting must not change the sum | passes even if nothing was sorted |
 
-Interpretation is inverted from the usual convention: **an empty output
-directory is a pass.** Any content is a problem report such as
-`misorder in <file> between …` or `bad key partitioning: …`.
+HSValidate writes its verdict to the output directory. On a pass it holds one
+line, the summed checksum in hex — on our dataset `checksum 4c49607ac53602`,
+i.e. `21472776955442690`, the HSGen CHECKSUM. A failure adds problem lines such
+as `misorder in <file> between …` or `bad key partitioning: …`. So a run passes
+when there is no problem line **and** the checksum equals HSGen's. (An earlier
+version of this page said an empty directory is the pass; every run in
+Milestone 3 wrote the checksum line, see [RESULTS.md](RESULTS.md#how-hsvalidate-was-judged).)
 
 The check is scale-independent, so the 1 GB run proves the same property as a
 100 TB run. Known kit issue: HSValidate can throw `IndexOutOfBoundsException`
@@ -103,7 +107,7 @@ it, and those assume a real cluster.
 
 | Parameter | Kit default | Here | Note |
 |-----------|-------------|------|------|
-| `NUM_MAPS` | 768 | 4 | 4 vcores |
+| `NUM_MAPS` | 768 | 4 | HSGen: 4 maps. HSSort: a hint only — it runs one map per 128 MB split, i.e. 8 |
 | `NUM_REDUCERS` | 768 | 4 | the main tuning knob for HSSort |
 | Scale | ≥ 100 GB via driver | 1 GB | fits the VM |
 | Replication | ≥ 3 | 1 | one node |
